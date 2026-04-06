@@ -46,4 +46,4 @@ Production-level development and scalable applications — because I had full co
 ## How to Submit
 
 1. **PR Link:** [Insert your Pull Request link here]
-2. **Video Link:** [Insert your Loom or recorded demo link here]
+2. **Video Link:** [\[Insert your Loom or recorded demo link here\]](https://drive.google.com/file/d/17zbDMG6Ld4N1PWEMuIuYcq0PECFzYDp2/view)
