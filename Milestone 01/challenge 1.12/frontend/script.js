@@ -39,6 +39,15 @@ async function sendMessage() {
     // Hint: fetch('http://localhost:3000/chat', { method: 'POST', ... })
     // On response: add { role: 'assistant', content: reply } to messages
     // Render the assistant bubble in chatDisplay
+    const response = await fetch('http://localhost:3000/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages })
+    });
+    const data = await response.json();
+    messages.push({ role: 'assistant', content: data.reply });
+    renderMessage("assistant", data.reply);
+
 }
 
 // Event Listeners
