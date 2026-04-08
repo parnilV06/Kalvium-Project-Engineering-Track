@@ -64,8 +64,8 @@ User → Frontend (index.html) → Your Backend (/chat) → OpenRouter API
 
 ## Live Deployment
 
-**Frontend URL:** <!-- Add after deploying -->  
-**Backend URL:** <!-- Add after deploying -->
+**Frontend URL:** https://fanciful-manatee-4b6149.netlify.app/
+**Backend URL:**  https://ai-chatbot-project-engg.onrender.com
 
 ## What to Submit
 
