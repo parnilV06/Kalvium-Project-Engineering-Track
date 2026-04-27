@@ -2,7 +2,6 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const taskRoutes = require("./routes/taskRoutes");
-const motivationRoutes = require("./routes/motivationRoutes");
 
 dotenv.config();
 
@@ -14,7 +13,6 @@ app.use(express.json());
 
 // Routes
 app.use("/api/tasks", taskRoutes);
-app.use("/api/motivation", motivationRoutes);
 
 app.get("/", (req, res) => {
   res.send("FocusForge API is running...");
