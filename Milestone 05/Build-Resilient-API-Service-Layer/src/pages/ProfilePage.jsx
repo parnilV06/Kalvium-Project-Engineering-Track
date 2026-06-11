@@ -1,6 +1,7 @@
 // 🚨 BROKEN: Profile page — same mess but now with form submission too.
 
 import { useState, useEffect } from 'react'
+import { getUser, updateUser } from '../services/api'
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null)
@@ -10,52 +11,39 @@ export default function ProfilePage() {
   const [saveMsg, setSaveMsg] = useState('')
   const [form, setForm] = useState({ email: '', username: '', phone: '' })
 
-  // ❌ BAD: 6th hardcoded URL in the project!
   useEffect(() => {
-    fetch(`https://fakestoreapi.com/users/1`)
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        return res.json()
-      })
-      .then(data => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const data = await getUser()
+        if (!mounted) return
         setUser(data)
         setForm({ email: data.email || '', username: data.username || '', phone: data.phone || '' })
-        setLoading(false)
-      })
-      .catch(err => {
-        // ❌ No shared error handling — each component writes its own version
-        if (err.message.includes('401')) {
+      } catch (err) {
+        const msg = err?.message || ''
+        if (msg.includes('401')) {
           setError('You need to log in')
         } else {
-          setError('Could not load profile: ' + err.message)
+          setError('Could not load profile: ' + (err?.message || 'Unknown error'))
         }
-        setLoading(false)
-      })
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    })()
+    return () => { mounted = false }
   }, [])
 
   const handleSave = async (e) => {
     e.preventDefault()
     setSaving(true)
-    const token = localStorage.getItem('auth_token') // AGAIN — 4th time in this codebase!
     try {
-      const res = await fetch(`https://fakestoreapi.com/users/1`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(form),
-      })
-      if (res.status === 401) {
-        // ❌ Manual 401 check — should be a global interceptor!
-        setError('Session expired. Please log in again.')
-        setSaving(false)
-        return
-      }
-      if (!res.ok) throw new Error('Failed to update profile')
-      const updated = await res.json()
+      const updated = await updateUser(form)
       setUser(updated)
       setSaveMsg('Profile saved!')
       setTimeout(() => setSaveMsg(''), 3000)
     } catch (err) {
-      setSaveMsg('Save failed: ' + err.message)
+      const msg = err?.message || 'Unknown error'
+      setSaveMsg('Save failed: ' + msg)
     }
     setSaving(false)
   }
