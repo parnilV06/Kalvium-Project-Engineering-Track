@@ -1,6 +1,7 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const cors = require('cors');
+const cacheService = require('./services/cache.service');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -8,100 +9,153 @@ const prisma = new PrismaClient();
 app.use(cors());
 app.use(express.json());
 
-
-const cache = new Map();
-
 // GET /tasks
-app.get('/tasks', async (req, res) => {
+app.get('/tasks', async (req, res, next) => {
   try {
-    // BUG 2: Global cache key logic (Used for EVERYTHING)
-    const cacheKey = 'global_data_key';
+    const cacheKey = 'tasks:list';
     
-    if (cache.has(cacheKey)) {
+    const cachedTasks = cacheService.get(cacheKey);
+    if (cachedTasks) {
       console.log('Serving from cache');
-      const cachedResult = cache.get(cacheKey);
-      // BUG 4: Missing await simulation -> If store promise, wait for it here
-      // But let's say the student forgets to even wait for it here or the code fails
-      return res.status(200).json(cachedResult);
+      return res.status(200).json(cachedTasks);
     }
 
-    // BUG 4: Missing await (Promise stored in cache)
-    const tasksPromise = prisma.task.findMany();
-    cache.set(cacheKey, tasksPromise); 
+    const tasks = await prisma.task.findMany();
     
-    const tasks = await tasksPromise;
+    // Cache the resolved data, not a promise
+    cacheService.set(cacheKey, tasks);
+    
     res.status(200).json(tasks);
   } catch (err) {
-    // BUG 8: Errors swallowed
-    console.log('Error fetching tasks', err);
+    next(err); // Pass error to Express error handler
   }
 });
 
 // GET /tasks/:id
-app.get('/tasks/:id', async (req, res) => {
-  const { id } = req.params;
-  const cacheKey = `task_${id}`;
-
+app.get('/tasks/:id', async (req, res, next) => {
   try {
-    if (cache.has(cacheKey)) {
-      // BUG 5: Null values cached permanently
-      // If we cached null, we just return it
-      return res.status(200).json(cache.get(cacheKey));
+    const { id } = req.params;
+    const taskId = parseInt(id, 10);
+    
+    if (isNaN(taskId)) {
+      return res.status(400).json({ error: 'Invalid task ID format' });
+    }
+
+    const cacheKey = `task:${taskId}`;
+
+    const cachedTask = cacheService.get(cacheKey);
+    if (cachedTask) {
+      return res.status(200).json(cachedTask);
     }
 
     const task = await prisma.task.findUnique({
-      where: { id: parseInt(id) }
+      where: { id: taskId }
     });
 
-    // BUG 5: Cached even if null
-    cache.set(cacheKey, task);
-    
-    // BUG 6: Wrong status codes (200 everywhere)
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    // Cache service avoids caching null values natively now
+    cacheService.set(cacheKey, task);
     res.status(200).json(task);
   } catch (err) {
-    console.log('Error fetching task', err);
+    next(err);
   }
 });
 
 // POST /tasks
-app.post('/tasks', async (req, res) => {
-  const { title, description, price } = req.body;
+app.post('/tasks', async (req, res, next) => {
   try {
+    const { title, description, price } = req.body;
+    
     const newTask = await prisma.task.create({
       data: { title, description, price: parseFloat(price) }
     });
 
-    // BUG 4: Missing await simulation - storing a promise
-    // Wait, if I use the return value it's fine. 
-    // Let's just create a messy caching logic here too
-    // Note: No invalidation of the 'all_tasks_data' key here
+    // Invalidate the tasks list cache as a new item was added
+    cacheService.delete('tasks:list');
     
-    // BUG 6: Wrong status code (should be 201)
-    res.status(200).json(newTask);
+    res.status(201).json(newTask);
   } catch (err) {
-    console.log('Error creating task', err);
+    next(err);
+  }
+});
+
+// PUT /tasks/:id
+app.put('/tasks/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const taskId = parseInt(id, 10);
+    
+    if (isNaN(taskId)) {
+      return res.status(400).json({ error: 'Invalid task ID format' });
+    }
+
+    const { title, description, price } = req.body;
+
+    const existingTask = await prisma.task.findUnique({
+      where: { id: taskId }
+    });
+
+    if (!existingTask) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    const updatedTask = await prisma.task.update({
+      where: { id: taskId },
+      data: { title, description, price: parseFloat(price) }
+    });
+
+    // Invalidate both the item and the list cache
+    cacheService.delete(`task:${taskId}`);
+    cacheService.delete('tasks:list');
+
+    res.status(200).json(updatedTask);
+  } catch (err) {
+    next(err);
   }
 });
 
 // DELETE /tasks/:id
-app.delete('/tasks/:id', async (req, res) => {
-  const { id } = req.params;
+app.delete('/tasks/:id', async (req, res, next) => {
   try {
-    await prisma.task.delete({
-      where: { id: parseInt(id) }
+    const { id } = req.params;
+    const taskId = parseInt(id, 10);
+    
+    if (isNaN(taskId)) {
+      return res.status(400).json({ error: 'Invalid task ID format' });
+    }
+
+    const existingTask = await prisma.task.findUnique({
+      where: { id: taskId }
     });
 
-    // BUG 1: Cache NOT invalidated after delete!
-    // The list in 'all_tasks_data' and 'task_id' still exist
+    if (!existingTask) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    await prisma.task.delete({
+      where: { id: taskId }
+    });
+
+    // Invalidate both the item and the list cache
+    cacheService.delete(`task:${taskId}`);
+    cacheService.delete('tasks:list');
     
-    // BUG 6: Wrong status code (should be 204 or 200 with message)
-    res.status(200).json({ message: 'Deleted' });
+    res.status(204).send();
   } catch (err) {
-    console.log('Error deleting task', err);
+    next(err);
   }
+});
+
+// Central error handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal Server Error' });
 });
 
 const PORT = 5000;
 app.listen(PORT, () => {
-  console.log(`Broken Server running on http://localhost:${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });
