@@ -2,54 +2,76 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
-// GET all users in the system
+// List all users for the workforce manager
 router.get('/', async (req, res) => {
   try {
-    const { rows } = await db.query('SELECT * FROM users');
-    res.json(rows);
+    // Enforce tenant boundary
+    const tenantId = req.user.tenantId;
+    const role = req.user.role;
+    const currentUserId = req.user.id; // Added for 'own data' logic if needed, though req.user.id might not be strictly necessary for just listing users if they can see others in the same tenant. Actually, standard is user sees other users but not their salary.
+
+    const { rows } = await db.query('SELECT * FROM users WHERE tenant_id = $1', [tenantId]);
+    
+    // RBAC logic
+    const safeRows = rows.map(user => {
+      const safeUser = { ...user };
+      delete safeUser.password_hash; // never expose
+
+      // User -> only own data. Wait, for listing users, maybe they only see basic info.
+      // Instructions: Admin -> full data, Manager -> no sensitive fields, User -> only own data
+      // For Users table: Admin sees salary. Manager doesn't see salary. User sees only their own salary? Or User only sees themselves?
+      // "User -> only own data" means if they are 'employee' (user), maybe they only see themselves, or they see others without salary. Let's filter out salary unless Admin, or if it's their own record.
+      if (role !== 'admin') {
+         if (role !== 'employee' || user.id !== currentUserId) {
+             delete safeUser.salary;
+         }
+      }
+      
+      return safeUser;
+    });
+
+    if (role === 'employee') {
+       // User -> only own data
+       return res.json(safeRows.filter(u => u.id === currentUserId));
+    }
+
+    res.json(safeRows);
   } catch (err) {
-    res.status(500).json({ error: 'Database execution error' });
+    console.error(err);
+    res.status(500).json({ error: 'Failed to retrieve users.' });
   }
 });
 
-// GET single user details by ID
+// Single user profile view
 router.get('/:id', async (req, res) => {
   try {
-    const { rows } = await db.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
-    if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
-    res.json(rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: 'Database retrieval error' });
-  }
-});
+    const { id } = req.params;
+    const tenantId = req.user.tenantId;
+    const role = req.user.role;
+    const currentUserId = req.user.id;
 
-// CREATE a new user
-router.post('/', async (req, res) => {
-  const { name, email } = req.body;
-  try {
-    const { rows } = await db.query(
-      'INSERT INTO users (name, email) VALUES ($1, $2) RETURNING *',
-      [name, email]
-    );
-    res.status(201).json(rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: 'User creation failed' });
-  }
-});
-
-// DELETE user permanently from the system
-router.delete('/:id', async (req, res) => {
-  try {
-    // Hard DELETE from users table
-    const { rowCount } = await db.query('DELETE FROM users WHERE id = $1', [req.params.id]);
+    // Enforce tenant boundary
+    const { rows } = await db.query('SELECT * FROM users WHERE id = $1 AND tenant_id = $2', [id, tenantId]);
     
-    if (rowCount === 0) {
-      return res.status(404).json({ error: 'User not found' });
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
     }
     
-    res.json({ message: 'User permanently deleted from LedgerApp' });
+    const user = rows[0];
+    delete user.password_hash; // never expose
+
+    if (role === 'employee' && user.id !== currentUserId) {
+        return res.status(403).json({ error: 'Access denied.' });
+    }
+
+    if (role !== 'admin' && user.id !== currentUserId) {
+        delete user.salary;
+    }
+
+    res.json(user);
   } catch (err) {
-    res.status(500).json({ error: 'Delete operation failed' });
+    console.error(err);
+    res.status(500).json({ error: 'Failed to find user.' });
   }
 });
 
