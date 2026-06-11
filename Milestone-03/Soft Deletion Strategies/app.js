@@ -1,31 +1,48 @@
 const express = require('express');
-const bodyParser = require('body-parser');
-require('dotenv').config();
-
-const usersRoute = require('./routes/users');
-const accountsRoute = require('./routes/accounts');
-const transactionsRoute = require('./routes/transactions');
-
 const app = express();
-const PORT = process.env.PORT || 3000;
+const usersRouter = require('./routes/users');
+const projectsRouter = require('./routes/projects');
 
-// Middleware configuration
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+// JSON parsing middleware
+app.use(express.json());
 
-// Primary API Endpoints
-app.use('/users', usersRoute);
-app.use('/accounts', accountsRoute);
-app.use('/transactions', transactionsRoute);
+// Mock Authentication Middleware
+// Simulates an authenticated user. In a real app, this would verify a JWT or session.
+app.use((req, res, next) => {
+  // Hardcoded for testing. You can change this to simulate different roles/tenants.
+  req.user = {
+    id: 1,
+    tenantId: 1, // Pouch.io
+    role: 'admin' // admin | manager | employee
+  };
+  next();
+});
 
-// Simple health check endpoint
+// Main entry route
 app.get('/', (req, res) => {
-  res.json({ message: 'LedgerApp API is running' });
+  res.json({
+    name: 'CorpFlow SaaS API',
+    version: '1.0.0-beta',
+    status: 'online',
+    message: 'Welcome to the CorpFlow internal workforce management API.',
+    currentUser: req.user
+  });
 });
 
-// App server startup
+// Register routers
+app.use('/users', usersRouter);
+app.use('/projects', projectsRouter);
+
+// Basic 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'Endpoint not found.' });
+});
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`\n🚀 CorpFlow SaaS API Running on port ${PORT}`);
+  console.log('------------------------------------------');
+  console.log(`Root:     http://localhost:${PORT}/`);
+  console.log(`Users:    http://localhost:${PORT}/users`);
+  console.log(`Projects: http://localhost:${PORT}/projects\n`);
 });
-
-module.exports = app;

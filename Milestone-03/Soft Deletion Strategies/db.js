@@ -1,17 +1,11 @@
-const { Pool } = require('pg');
 require('dotenv').config();
+const { Pool } = require('pg');
 
-// Pool configuration using DB_URL from environment variables
 const pool = new Pool({
-  connectionString: process.env.DB_URL,
-});
-
-// Logs connection errors for debugging
-pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 module.exports = {
-  // Direct execution Helper
   query: (text, params) => pool.query(text, params),
 };

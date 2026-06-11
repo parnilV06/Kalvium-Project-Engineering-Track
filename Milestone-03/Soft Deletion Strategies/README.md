@@ -1,69 +1,62 @@
-# LedgerApp - Financial Record Management API
+# CorpFlow Workforce Management API (v1.0-beta)
 
-Welcome to the LedgerApp starter repository! This is a core financial API designed for early-stage startups to manage user accounts and transaction history with speed and efficiency.
+Welcome to the **CorpFlow** engineering starter repository. CorpFlow is a fast-paced SaaS platform designed for high-growth companies to manage their developers, project budgets, and payroll data in one place.
+
+This repository contains the first version of the internal API, which provides a simple, direct interface for managing the workforce across multiple organizational customers like **Pouch.io** and **Velocity**.
 
 ## 🚀 Getting Started
 
-### Prerequisites
-- Node.js (v18+)
-- PostgreSQL (v14+)
+### 1. Prerequisites
+- Node.js (v18 or higher)
+- PostgreSQL (v14 or higher)
 
-### Installation
-1. Clone the repository and install dependencies:
-   ```bash
-   npm install
-   ```
+### 2. Database Setup
+Create a new PostgreSQL database named `corpflow`:
+```bash
+createdb corpflow
+```
 
-2. Create a PostgreSQL database called `ledgerapp`.
+Run the schema script to Initialize the tables and seed with test data:
+```bash
+# From the project root
+npm run seed
+```
 
-3. Initialize the database schema:
-   ```bash
-   psql -d ledgerapp -f schema.sql
-   ```
+### 3. Application Setup
+Install dependencies and configure your environment:
+```bash
+npm install
+cp .env.example .env
+```
+*(Update `.env` with your database credentials.)*
 
-4. Configure environment variables:
-   - Create a `.env` file based on `.env.example`.
-   - Set the `DB_URL` with your database credentials.
+### 4. Run the API
+Start the server in development mode:
+```bash
+npm start
+```
 
-5. Start the application:
-   ```bash
-   npm start
-   ```
+## 🛤️ API Endpoints
 
----
-
-## 🛠 API Endpoints
-
-### 👤 Users
-- `GET /users`: List all users.
-- `GET /users/:id`: Get user details.
-- `POST /users`: Create a new user.
-- `DELETE /users/:id`: Delete a user account from the system.
-
-### 💳 Accounts
-- `GET /accounts`: List all bank accounts.
-- `GET /accounts/user/:userId`: List all accounts specifically for a user.
-- `POST /accounts`: Create a new checking/savings account.
-- `DELETE /accounts/:id`: Remove an account from the database.
-
-### 💸 Transactions
-- `GET /transactions`: List all global transactions.
-- `GET /transactions/account/:accountId`: List all transactions for a specific account.
-- `POST /transactions`: Post a new credit/debit transaction.
-- `DELETE /transactions/:id`: Erase a transaction record permanently.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | API status and greeting |
+| GET | `/users` | List all workforce users |
+| GET | `/users/:id` | Get details for a specific user |
+| GET | `/projects` | List all active project budgets |
+| GET | `/projects/:id`| View details on a specific project |
 
 ---
 
-## 🏗 Project Structure
+## 🛠️ Internal Roadmap (Upcoming Features)
+The current version is an early release. The engineering team is moving fast, and we are planning to add:
+- Advanced filtering and sorting.
+- Complex project-to-user mappings.
+- Expanded billing and payroll reporting.
+- Enhanced analytics dashboards.
 
-- `app.js`: Express application initialization and middleware setup.
-- `db.js`: Database connection pool management via `pg`.
-- `schema.sql`: Core database structure defining Users, Accounts, and Transactions.
-- `routes/`: Implementation of RESTful endpoints for each entity.
+Kalvium Project Engineering Track - Milestone 3 - Challenge 8 - Submission
 
 ---
-
-## 💡 Tech Stack
-- **Node.js + Express**
-- **PostgreSQL**
-- **pg (node-postgres)** for raw SQL execution
+**Status:** Alpha
+**License:** Private Internal Use Only

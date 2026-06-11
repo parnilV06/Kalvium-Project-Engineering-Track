@@ -102,4 +102,14 @@ The database **does not use the index efficiently**.
 
 ---
 
+## Our Approach
+
+1. **Analysis**: We first examined the provided queries (`department = 'Sales' AND salary > 50000`).
+2. **Identification of the Issue**: The current composite index is ordered as `(salary, department)`. Since the query applies a range filter (`>`) on the leading column `salary`, PostgreSQL cannot fully utilize the index to narrow down records effectively. This violates the Left-Most Prefix Rule.
+3. **Resolution**: We dropped the inefficient index `idx_salary_department` and replaced it with `idx_department_salary` using the order `(department, salary)`.
+4. **Result**: By placing the equality filter (`department`) first, the database B-Tree index can immediately seek the exact branch, and then scan the matching `salary` range within that specific department. This turns a full Sequential Scan into a highly optimized Index Scan.
+
+For detailed explanation and SQL instructions, please refer to the `Changes.md` and `index_experiment.sql` files included in this repository.
+
 Happy debugging and index optimizing!
+

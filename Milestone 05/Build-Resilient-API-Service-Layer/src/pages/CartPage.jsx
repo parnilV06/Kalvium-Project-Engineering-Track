@@ -1,6 +1,7 @@
 // 🚨 BROKEN: Cart page also doing its own fetch — third different pattern in the codebase!
 
 import { useState, useEffect } from 'react'
+import { getCart, deleteFromCart } from '../services/api'
 
 export default function CartPage() {
   const [cart, setCart] = useState(null)
@@ -8,45 +9,29 @@ export default function CartPage() {
   const [error, setError] = useState(null)
   const [removing, setRemoving] = useState(null)
 
-  // ❌ Yet another hardcoded URL — count how many exist in this codebase!
   useEffect(() => {
-    fetch(`https://fakestoreapi.com/carts/user/1`)
-      .then(res => res.json()) // ❌ Not checking res.ok at all!
-      .then(async (carts) => {
-        if (!carts || carts.length === 0) {
-          setCart({ products: [] })
-          setLoading(false)
-          return
-        }
-        const latest = carts[carts.length - 1]
-        // ❌ Nested fetches — very hard to read and maintain
-        const productDetails = await Promise.all(
-          latest.products.map(item =>
-            fetch(`https://fakestoreapi.com/products/${item.productId}`) // URL #5!
-              .then(r => r.json())
-              .then(p => ({ ...p, quantity: item.quantity }))
-          )
-        )
-        setCart({ ...latest, productDetails })
-        setLoading(false)
-      })
-      .catch(() => {
-        setError('Could not load your cart') // generic error, no logging, no retry
-        setLoading(false)
-      })
+    let mounted = true
+    ;(async () => {
+      try {
+        const c = await getCart()
+        if (!mounted) return
+        setCart(c)
+      } catch (err) {
+        setError('Could not load your cart')
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    })()
+    return () => { mounted = false }
   }, [])
 
   const handleRemove = async (productId) => {
     setRemoving(productId)
-    const token = localStorage.getItem('auth_token') // AGAIN manual token retrieval
     try {
-      await fetch(`https://fakestoreapi.com/carts/${cart.id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` },
-      })
+      await deleteFromCart(cart.id)
       setCart(prev => ({ ...prev, productDetails: prev.productDetails.filter(p => p.id !== productId) }))
     } catch (err) {
-      alert('Remove failed: ' + err.message) // alert() again!
+      alert('Remove failed: ' + (err?.message || 'Unknown error'))
     }
     setRemoving(null)
   }

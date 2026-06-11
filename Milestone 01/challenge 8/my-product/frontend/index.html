@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DSA Code Commenter</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>DSA Code Commenter</h1>
+      <p class="subtitle">Paste your solution and get clear, beginner-friendly inline comments.</p>
+
+      <label for="codeInput">Your Code</label>
+      <textarea id="codeInput" rows="12" placeholder="Paste your DSA solution here..."></textarea>
+
+      <label for="problemInput">Problem (optional)</label>
+      <textarea id="problemInput" rows="4" placeholder="Paste the problem statement here (optional)..."></textarea>
+
+      <button id="explainBtn">Explain Code</button>
+
+      <p id="status" class="status"></p>
+
+      <section class="output">
+        <h2>Commented Code</h2>
+        <pre><code id="resultCode"></code></pre>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>

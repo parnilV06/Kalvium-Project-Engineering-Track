@@ -55,4 +55,5 @@ model Booking {
   // Two concurrent inserts for the same (seatId, showId) will both succeed.
   // The database has no way to reject the second one.
   // Add @@unique([seatId, showId]) to fix this.
+  @@unique([seatId, showId])
 }
